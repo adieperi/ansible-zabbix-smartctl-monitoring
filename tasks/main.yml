@@ -1,0 +1,65 @@
+---
+- name: Git clone zbx-smartctl.git
+  git:
+    repo: https://github.com/v-zhuravlev/zbx-smartctl.git
+    dest: /tmp/zbx-smartctl
+
+- name: Update packages list
+  apt: update_cache=yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install a list of packages
+  apt:
+    pkg:
+      - nvme-cli
+      - smartmontools
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Importing sudoers_zabbix_smartctl configuration file
+  shell: cp /tmp/zbx-smartctl/sudoers_zabbix_smartctl /etc/sudoers.d/sudoers_zabbix_smartctl
+  args:
+    executable: /bin/bash
+
+- name: Change sudoers_zabbix_smartctl file permissions
+  file:
+    path: /etc/sudoers.d/sudoers_zabbix_smartctl
+    mode: '440'
+
+- name: Importing zabbix_smartctl.conf configuration file
+  shell: cp /tmp/zbx-smartctl/zabbix_smartctl.conf /etc/zabbix/zabbix_agentd.d/zabbix_smartctl.conf
+  args:
+    executable: /bin/bash
+
+- name: Create /etc/zabbix/scripts directory if it does not exist
+  file:
+    path: /etc/zabbix/scripts/
+    state: directory
+    mode: '0755'
+
+- name: Importing zabbix_smartctl.conf configuration file
+  shell: cp /tmp/zbx-smartctl/discovery-scripts/nix/smartctl-disks-discovery.pl /etc/zabbix/scripts/smartctl-disks-discovery.pl
+  args:
+    executable: /bin/bash
+
+- name: Change smartctl-disks-discovery.pl file permissions
+  file:
+    path: /etc/zabbix/scripts/smartctl-disks-discovery.pl
+    owner: zabbix
+    group: zabbix
+    mode: '770'
+
+- name: restart zabbix-agent 
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: zabbix-agent
+
+- name: enable service zabbix-agent
+  systemd:
+    name: zabbix-agent
+    enabled: yes
+
+- name: Make sure zabbix-agent service is running
+  systemd:
+    state: started
+    name: zabbix-agent
