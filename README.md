@@ -1,0 +1,1 @@
+# ansible-zabbix-smartctl-monitoring
